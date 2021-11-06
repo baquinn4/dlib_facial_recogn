@@ -1,0 +1,187 @@
+
+[Bradley Quinn]
+
+
+I. FaceFind
+_______________________________________________________________________________________________
+
+ 8/9/21
+ ------
+ 
+ size of directory parsed: 135 photos (jpg,png,jpeg) 178.5 MiB
+ 
+ runtime: 429.693 (seconds) <=> 7.161 (minutes)
+ 
+ average time per photo: 3.182 (seconds)
+ 
+ optimal adjustment to detection threshold: False
+ 
+_______ _______ _______ _______ _______ _______ _______ _______ _______ _______ _______ _______ 
+ 
+ 8/10/21
+ ------
+ 
+ size of directory parsed: 135 photos (jpg,png,jpeg) 178.5 MiB
+ 
+ runtime: 193.733  (seconds) <=> 3.211 (minutes)
+ 
+ average time per photo: 1.435 (seconds)
+ 
+ optimal adjustment to detection threshold: False
+ 
+ WHAT CHANGED: upsample was disabled
+ 
+_______ _______ _______ _______ _______ _______ _______ _______ _______ _______ _______ _______  		
+ 8/11/21
+ -------
+ 
+ (1)
+ 
+ size of directory parsed: 135 photos (jpg,png,jpeg) 178.5 MiB
+ 
+ runtime: 140.879  (seconds) <=> 2.347 (minutes)
+ 
+ average time per photo: 1.043 (seconds)
+ 
+ optimal adjustment to detection threshold: False
+ 
+ upsample: disabled
+ 
+ WHAT CHANGED: Implemented multiprocessing, chunk sizes = #(photos)/#(number of processes)
+ 	       *note: still need to handle race conditions
+ 		
+ (2)
+ 
+ size of directory parsed: 135 photos (jpg,png,jpeg) 178.5 MiB
+ 
+ runtime: 73.114  (seconds) <=> 1.218 (minutes)
+ 
+ average time per photo: 0.541 (seconds)
+ 
+ optimal adjustment to detection threshold: False
+ 
+ upsample: disabled
+ 
+ WHAT CHANGED: Earlier implementation of multiprocessing was done incorrectly, had race 			conditions,processes were running seqeuntially.
+ 		Fixed by passing chunked data[i] as a Queue via arguments to each process,
+ 		and then Queue.get() to have individual list of photo filenames for each
+ 		process.
+ 	        *note: If im chunking data so each process only runs on X amount of unique photo 			names, why do I need to lock data? process 1 will not try to cv2.read() photos 		being read by process 2. May be able to solve this and speed up.
+ 	        
+ 	        Solution(maybe ?): 
+ 	        
+ 	        	create a class that runs hf_parse on data passed to class when made
+ 	        	create a main.py method that we will pass to each process
+ 	        	find optimal chunk size given #processes
+ 	        	keep a class variable count in class that runs hf_parse
+ 	        	create class that runs hf_parse and check count, 
+ 	        	    - if first instance of class pass [0,optimal chunk size] photo names
+ 	        	When we create a process and pass it this method it will check it to see 			     	   essentialy which process it is, based on that it will have [X:N] photo 				   names to run hf_parse on. Because the photos are unsorted and we dont
+ 	        	   care about sorting them.
+ 	        		
+ 	        	Stop checking instances when instance counter is > cpu_counter(# of processes)
+ 	        	
+ 	        	
+ 
+_______ _______ _______ _______ _______ _______ _______ _______ _______ _______ _______ _______ 		
+ 8/12/21
+ -------
+ 
+ * Some cleaning up and removal of unused code
+ * created shape predictor(sp) and face_rec_model(facerec) objects that are dlib pretrained models
+   - facerec currently just computes_face_descriptor, a value of a face for identification.
+ 	
+_______ _______ _______ _______ _______ _______ _______ _______ _______ _______ _______ _______
+ 
+ 8/13/21
+ -------
+ 
+ * Currently trying to figure out how to return each processes individual face_descriptors    	  list(containing face objects).
+_______ _______ _______ _______ _______ _______ _______ _______ _______ _______ _______ _______
+ 
+ 8/14/21
+ -------
+ 
+ * Converted every face_descriptor(dlib.vector) to numpy array
+ * Need to: iterate over all face_descriptors and if euclidean distance between any given two
+ 	is < 0.6 create a Face object with these vectors and store them, to identify unique faces
+ 	in all photos.
+ * created loop to store face images cut from bigger images in dir face_photos
+ * for some reason some faces are not be written out as images even though they are being created
+ 	and appended to face_images list
+ 
+ _______ _______ _______ _______ _______ _______ _______ _______ _______ _______ _______ _______
+ 
+ 8/15/21
+ -------
+ 
+ * So for some reason trying to extract face images while also trying to parse photos into "Passed"
+ 	and "Failed" dirs resulted in 1) random loss of some photos? 2) not all faces were extracted
+ * Trying now to have two seperate methods one to parse for face, then go into "Passed" dir and
+ 	extract face images
+ * Finally works, but runtime was 92 seconds, so now making fp_parse be handled using multiple   		processes, before it just continued in main after earlier processes joined.
+ 
+ A. Before running fp_parse on multiple processes
+ 
+ 	size of directory parsed: 106 photos (jpg,png,jpeg) 150.5 MiB
+ 
+ 	size of passed_pictures:  60 photos (jpg) 59.5 Mib
+ 	
+ 	face_photos generated:	  161 photos (jpg) 2.3 Mib (smaller dimensions)
+ 
+ 	runtime: 92.5 (seconds) <=> 1.451 (minutes)
+ 
+ 	average time per photo + per face photo: 0.872 (seconds)
+ 	
+ B. After running fp_parse on multiple processes
+ 
+ 	size of directory parsed: 106 photos (jpg,png,jpeg) 150.5 MiB
+ 
+ 	size of passed_pictures:  60 photos (jpg) 59.5 Mib
+ 	
+ 	face_photos generated:	  161 photos (jpg) 2.3 Mib (smaller dimensions)
+ 
+ 	runtime: 77.254 (seconds) <=> 1.287 (minutes)
+ 
+ 	average time per photo + per face photo: 0.728 (seconds)
+ 
+ * Also think some face_photos not being added to face_pictures due to an exception, need to find it
+ 
+ * Longer because im running face_hogs() twice, once to split all pictures, then again to extract 	  face images because
+ 
+ * So i think missing faces from pictures present in passed_pictures is due to being cropped where
+ 	the original rectangle drawn by hf_parse is not present and gives (x,y,w,h) a negative value.
+ 	So sizing issue.
+ 	
+ _______ _______ _______ _______ _______ _______ _______ _______ _______ _______ _______ _______	
+ 	
+ 9/2/21
+ ------
+ 
+ * Count on face_photos was repeatin so faces were being over written to the same filename, fixed that so now all faces are added to dir face_pictures with unique filenames
+ 
+ * Earlier assumption of missing faces was not due to any croppin of original rectangle type error
+ 
+ * When no other processors being used main.py runs anywhere from:
+ 
+ 	48 to 51 (seconds) on 101 photos
+ 	
+ 	most recent tests:
+ 	
+ 	(1)
+ 		49.229 (seconds) on 101 photos 
+ 		
+ 		0.487 (seconds) per photo
+ 		
+ 	(2)
+		49.094 (seconds) on 101 photos
+		
+		0.486 (seconds) per photo
+					
+ 		
+ * face_hogs() and compute_face_descriptor() run in the same loop now.
+ * removed print statements and other unneccesary code
+ 
+ * currenty trying to find distinct number of faces from an array of all face descriptors nparrays
+ 
+ 	
