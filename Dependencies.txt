@@ -1,0 +1,10 @@
+
+- cython
+  * c++ compiler (some systems dont have it pre-installed)
+  
+- some command line tool to download all icloud photos, called icloudpd (i think)
+
+- dlib
+  * SHAPE_PREDICTOR_PRETRAINED = "/home/brad/Documents/projects/P-Hark/FindFace/		   shape_predictor_5_face_landmarks.dat"
+  
+  * FACE_REC_PRETRAINED_MODEL = "/home/brad/Documents/projects/P-Hark/FindFace/dlib_face_recognition_resnet_model_v1.dat"
